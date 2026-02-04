@@ -1,5 +1,5 @@
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, Border, Side
 from src.models import RemisionGuide
 from typing import List
 
@@ -24,10 +24,17 @@ def guardar_guias(ruta_excel: str, lista_guias: List[RemisionGuide]):
             # 2. Convertimos esa celda de texto en un HIPERVÍNCULO real
             ultima_fila = hoja.max_row
             
-            # Centramos el contenido de todas las celdas de la fila insertada
+            # Centramos el contenido y añadimos bordes
             alineacion_centro = Alignment(horizontal='center', vertical='center')
+            borde_delgado = Border(left=Side(style='thin'), 
+                                   right=Side(style='thin'), 
+                                   top=Side(style='thin'), 
+                                   bottom=Side(style='thin'))
+
             for i in range(1, 8):
-                hoja.cell(row=ultima_fila, column=i).alignment = alineacion_centro
+                celda = hoja.cell(row=ultima_fila, column=i)
+                celda.alignment = alineacion_centro
+                celda.border = borde_delgado
 
             celda_link = hoja.cell(row=ultima_fila, column=7)
             
@@ -35,6 +42,7 @@ def guardar_guias(ruta_excel: str, lista_guias: List[RemisionGuide]):
             celda_link.hyperlink = guia.ruta_archivo
             celda_link.style = "Hyperlink"  # Esto lo pone azul y subrayado automáticamente
             celda_link.alignment = alineacion_centro
+            celda_link.border = borde_delgado
             
         libro.save(ruta_excel)
         print(f"Fila insertada: {guia.cod_remitente} / {guia.cod_transportista}")

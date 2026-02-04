@@ -1,0 +1,22 @@
+# Colors
+BACKGROUND = "#f0f2f5"
+WHITE = "#ffffff"
+PRIMARY = "#007bff"
+PRIMARY_HOVER = "#0056b3"
+TEXT_DARK = "#333333"
+TEXT_LIGHT = "#666666"
+BORDER = "#dcdcdc"
+SUCCESS = "#28a745"
+ERROR = "#dc3545"
+
+# Fonts
+FONT_FAMILY = "Segoe UI" # Standard Windows font
+FONT_TITLE = (FONT_FAMILY, 16, "bold")
+FONT_NORMAL = (FONT_FAMILY, 10)
+FONT_BOLD = (FONT_FAMILY, 10, "bold")
+FONT_SMALL = (FONT_FAMILY, 9)
+
+# Layout
+PADDING_SMALL = 5
+PADDING_MEDIUM = 10
+PADDING_LARGE = 20

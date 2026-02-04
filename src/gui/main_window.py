@@ -1,0 +1,251 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from pathlib import Path
+import threading
+
+from src.config.settings import settings
+from src.gui import styles
+from src.parsers.pdf_parser import PDFParser
+from src.storage.excel_db import guardar_guias
+
+class MainWindow(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Extractor de Guías de Remisión")
+        self.geometry("600x500")
+        self.configure(bg=styles.BACKGROUND)
+        self.resizable(False, False)
+
+        self.files_to_process = []
+        
+        self._setup_ui()
+        self._load_initial_settings()
+
+    def _setup_ui(self):
+        # Title
+        title_label = tk.Label(
+            self, 
+            text="Extractor de Guías de Remisión", 
+            font=styles.FONT_TITLE,
+            bg=styles.BACKGROUND,
+            fg=styles.TEXT_DARK
+        )
+        title_label.pack(pady=styles.PADDING_LARGE)
+
+        # Configuration Frame
+        config_frame = tk.Frame(self, bg=styles.BACKGROUND)
+        config_frame.pack(fill=tk.X, padx=styles.PADDING_LARGE, pady=styles.PADDING_SMALL)
+
+        tk.Label(
+            config_frame, 
+            text="Archivo Destino (Excel):", 
+            font=styles.FONT_BOLD,
+            bg=styles.BACKGROUND,
+            fg=styles.TEXT_DARK
+        ).pack(anchor="w")
+
+        self.excel_path_var = tk.StringVar()
+        self.excel_path_entry = tk.Entry(
+            config_frame, 
+            textvariable=self.excel_path_var, 
+            readonlybackground=styles.WHITE,
+            state="readonly",
+            font=styles.FONT_NORMAL,
+            bd=1,
+            relief="solid"
+        )
+        self.excel_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, styles.PADDING_SMALL))
+
+        tk.Button(
+            config_frame, 
+            text="...", 
+            command=self.select_excel_path,
+            bg=styles.PRIMARY,
+            fg=styles.WHITE,
+            activebackground=styles.PRIMARY_HOVER,
+            activeforeground=styles.WHITE,
+            relief="flat",
+            cursor="hand2"
+        ).pack(side=tk.RIGHT)
+
+        # Selection Area
+        self.dnd_frame = tk.Frame(
+            self, 
+            bg=styles.WHITE, 
+            bd=2, 
+            relief="groove"
+        )
+        self.dnd_frame.pack(
+            fill=tk.BOTH, 
+            expand=True, 
+            padx=styles.PADDING_LARGE, 
+            pady=styles.PADDING_LARGE
+        )
+
+        # Container for centering
+        center_frame = tk.Frame(self.dnd_frame, bg=styles.WHITE)
+        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        self.dnd_label = tk.Label(
+            center_frame,
+            text="Haz clic para seleccionar archivos PDF",
+            font=styles.FONT_NORMAL,
+            bg=styles.WHITE,
+            fg=styles.TEXT_LIGHT,
+            justify=tk.CENTER,
+            cursor="hand2"
+        )
+        self.dnd_label.pack(pady=(0, 10))
+
+        self.select_btn = tk.Button(
+            center_frame,
+            text="Seleccionar Archivos",
+            command=self.select_files,
+            bg=styles.PRIMARY,
+            fg=styles.WHITE,
+            activebackground=styles.PRIMARY_HOVER,
+            relief="flat",
+            cursor="hand2"
+        )
+        self.select_btn.pack()
+
+        # Bind events
+        self.dnd_frame.bind("<Button-1>", lambda e: self.select_files())
+        self.dnd_label.bind("<Button-1>", lambda e: self.select_files())
+
+        # Status and Actions
+        action_frame = tk.Frame(self, bg=styles.BACKGROUND)
+        action_frame.pack(fill=tk.X, padx=styles.PADDING_LARGE, pady=styles.PADDING_LARGE)
+
+        self.status_label = tk.Label(
+            action_frame, 
+            text="Esperando selección...", 
+            font=styles.FONT_SMALL,
+            bg=styles.BACKGROUND,
+            fg=styles.TEXT_LIGHT
+        )
+        self.status_label.pack(side=tk.LEFT)
+
+        self.process_btn = tk.Button(
+            action_frame, 
+            text="Procesar Archivos", 
+            command=self.start_processing,
+            bg=styles.SUCCESS,
+            fg=styles.WHITE,
+            activebackground="#218838", # Darker green
+            activeforeground=styles.WHITE,
+            font=styles.FONT_BOLD,
+            relief="flat",
+            state="disabled",
+            cursor="hand2"
+        )
+        self.process_btn.pack(side=tk.RIGHT)
+
+    def _load_initial_settings(self):
+        path = settings.excel_path
+        if path:
+            self.excel_path_var.set(path)
+        else:
+            self.excel_path_var.set("Seleccione un archivo...")
+
+    def select_excel_path(self):
+        path = filedialog.askopenfilename(
+            title="Seleccionar archivo Excel",
+            filetypes=[("Excel Files", "*.xlsx")]
+        )
+        if path:
+            settings.excel_path = path
+            self.excel_path_var.set(path)
+
+    def select_files(self):
+        files = filedialog.askopenfilenames(
+            title="Seleccionar PDFs",
+            filetypes=[("PDF Files", "*.pdf")]
+        )
+        if files:
+            self.add_files(files)
+
+    def add_files(self, files):
+        new_files = [f for f in files if f not in self.files_to_process]
+        if not new_files:
+            return
+
+        self.files_to_process.extend(new_files)
+        self.update_status(f"{len(self.files_to_process)} archivos seleccionados")
+        self.update_dnd_label()
+        self.process_btn.config(state="normal")
+
+    def update_dnd_label(self):
+        if not self.files_to_process:
+            self.dnd_label.config(text="Haz clic aquí para seleccionar archivos PDF")
+        else:
+            files_text = "\n".join([Path(f).name for f in self.files_to_process[:5]])
+            if len(self.files_to_process) > 5:
+                files_text += f"\n... y {len(self.files_to_process) - 5} más"
+            self.dnd_label.config(text=f"Archivos listos:\n{files_text}")
+
+    def update_status(self, text, is_error=False):
+        color = styles.ERROR if is_error else styles.TEXT_LIGHT
+        self.status_label.config(text=text, fg=color)
+        self.update_idletasks()
+
+    def start_processing(self):
+        excel_path = settings.excel_path
+        if not excel_path or not Path(excel_path).exists():
+            messagebox.showwarning("Falta configuración", "Por favor seleccione un archivo Excel de destino válido.")
+            return
+
+        self.process_btn.config(state="disabled")
+        self.update_status("Procesando...")
+        
+        # Run in thread to keep UI responsive
+        threading.Thread(target=self.process_logic, daemon=True).start()
+
+    def process_logic(self):
+        excel_path = settings.excel_path
+        pdf_parser = PDFParser()
+        all_guides = []
+        errors = []
+
+        try:
+            for pdf_path in self.files_to_process:
+                self.update_status(f"Leyendo: {Path(pdf_path).name}")
+                try:
+                    guides = pdf_parser.extract_guides(pdf_path)
+                    all_guides.extend(guides)
+                except Exception as e:
+                    errors.append(f"{Path(pdf_path).name}: {str(e)}")
+
+            if not all_guides:
+                self.process_finished(f"No se encontraron guías. {len(errors)} errores.", is_error=True)
+                return
+
+            self.update_status("Guardando en Excel...")
+            guardar_guias(excel_path, all_guides)
+
+            msg = f"Completado! {len(all_guides)} guías guardadas."
+            if errors:
+                msg += f" {len(errors)} de {len(self.files_to_process)} fallaron."
+            
+            self.process_finished(msg)
+
+        except Exception as e:
+            self.process_finished(f"Error crítico: {str(e)}", is_error=True)
+
+    def process_finished(self, message, is_error=False):
+        # Schedule GUI update on main thread
+        self.after(0, lambda: self._process_finished_ui(message, is_error))
+
+    def _process_finished_ui(self, message, is_error):
+        self.update_status(message, is_error)
+        self.process_btn.config(state="normal")
+        if not is_error:
+            messagebox.showinfo("Proceso Terminado", message)
+            self.files_to_process = []
+            self.update_dnd_label()
+        else:
+            messagebox.showerror("Error", message)
+
+if __name__ == "__main__":
+    app = MainWindow()
+    app.mainloop()

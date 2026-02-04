@@ -1,4 +1,5 @@
 from openpyxl import load_workbook
+from datetime import datetime
 from openpyxl.styles import Alignment, Border, Side
 from src.models import RemisionGuide
 from typing import List
@@ -11,10 +12,18 @@ def guardar_guias(ruta_excel: str, lista_guias: List[RemisionGuide]):
         for guia in lista_guias:
             # Insertamos en el orden exacto de tu imagen:
             # 1. Remitente | 2. Transportista | 3. Fecha | 4. Peso | 5. Sacos (VACÍO) | 6. Placa | 7. Ruta del archivo PDF
+            # Intentamos convertir la fecha a objeto date para que Excel la reconozca
+            fecha_val = guia.fecha
+            try:
+                # El regex extrae dd/mm/yyyy, intentamos parsearlo
+                fecha_val = datetime.strptime(guia.fecha, "%d/%m/%Y").date()
+            except (ValueError, TypeError):
+                pass # Si falla, se queda como string original
+
             hoja.append([
                 guia.cod_remitente,     # Columna A
                 guia.cod_transportista, # Columna B
-                guia.fecha,             # Columna C
+                fecha_val,              # Columna C
                 guia.peso,              # Columna D
                 "",                     # Columna E (Sacos - Lo dejamos vacío)
                 guia.placa,             # Columna F
@@ -35,6 +44,10 @@ def guardar_guias(ruta_excel: str, lista_guias: List[RemisionGuide]):
                 celda = hoja.cell(row=ultima_fila, column=i)
                 celda.alignment = alineacion_centro
                 celda.border = borde_delgado
+            
+            # Formato específico para la FECHA (columna 3)
+            # 'dd/mm/yyyy' permite que Excel lo reconozca como fecha corta
+            hoja.cell(row=ultima_fila, column=3).number_format = 'dd/mm/yyyy'
 
             celda_link = hoja.cell(row=ultima_fila, column=7)
             

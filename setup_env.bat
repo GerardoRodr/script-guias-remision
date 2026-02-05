@@ -1,17 +1,17 @@
 @echo off
-echo Setting up environment...
+echo Configurando el entorno...
 
-:: Create venv if it doesn't exist
+:: Crear venv si no existe
 if not exist "venv" (
-    echo Creating virtual environment...
+    echo Creando entorno virtual...
     python -m venv venv
 )
 
-:: Activate venv and install requirements
-echo Installing requirements...
+:: Activar venv e instalar dependencias
+echo Instalando dependencias...
 call venv\Scripts\activate.bat
 pip install -r requirements.txt
 
 echo.
-echo Setup complete! You can now run the script using run.bat
+echo Configuracion completa! Ahora puedes ejecutar el script usando run.bat
 pause

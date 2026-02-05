@@ -1,31 +1,52 @@
-# Script de Procesamiento de Guías de Remisión
+# Extractor de Guías de Remisión
 
-Este proyecto automatiza la extracción de datos de guías de remisión en formato PDF y su registro en un archivo Excel.
+Este proyecto automatiza la extracción de datos de guías de remisión en formato PDF y su registro en un archivo Excel. Ahora incluye una **interfaz gráfica moderna** para facilitar el procesamiento masivo de archivos.
 
 ## 📋 Descripción
 
-El script escanea las dos primeras páginas de un archivo PDF de guías de remisión para extraer información clave como el código del remitente, código del transportista, fecha, peso y número de placa. Una vez extraídos, estos datos se insertan en una nueva fila de un archivo Excel existente, aplicando formato específico (centrado, bordes y enlace al archivo fuente).
+El software escanea las dos primeras páginas de archivos PDF de guías de remisión para extraer información clave:
+
+- Código del remitente
+- Código del transportista
+- Fecha de emisión
+- Peso Bruto
+- Número de Placa
+
+Los datos extraídos se insertan en una nueva fila de un archivo Excel existente, aplicando formato específico (centrado, bordes) y creando un enlace directo al archivo fuente.
 
 ## ✨ Características
 
-- **Extracción de Datos**: Utiliza expresiones regulares para identificar y extraer:
-  - Código de Remitente (e.g., "N° EG07 - ...")
-  - Código de Transportista
-  - Fecha de emisión
-  - Peso Bruto
-  - Número de Placa
+- **Interfaz Gráfica (GUI) Nueva**:
+  - Diseño intuitivo y minimalista.
+  - Selección de múltiples archivos PDF simultáneamente.
+  - Área de carga interactiva.
+  - Visualización de estado y reporte de errores.
+- **Configuración Persistente**: El sistema recuerda automáticamente la ubicación de tu archivo Excel de destino.
+- **Extracción de Datos Robusta**: Identificación precisa de campos mediante expresiones regulares.
 - **Integración con Excel**:
-  - Inserta los datos extraídos en la primera hoja activa.
-  - **Formato Automático**: Centra el contenido de las celdas y añade bordes delgados.
-  - **Hipervínculo**: Crea un enlace funcional en la última columna que apunta al archivo PDF procesado.
-- **Modularidad**: Código organizado en módulos para fácil mantenimiento (`parsers`, `storage`, `models`).
+  - Escritura en la primera hoja activa.
+  - **Estilizado Automático**: Centrado de celdas y bordes.
+  - **Hipervínculos**: Acceso rápido al PDF original desde el Excel.
+- **Modularidad**: Arquitectura organizada (`gui`, `parsers`, `storage`, `config`).
 
 ## 🛠️ Requisitos del Sistema
 
-- Windows (Probado en este entorno)
+- Windows
 - Python 3.8+
 
 ## 📦 Instalación
+
+### Opción A: Configuración Automática (Recomendada)
+
+Simplemente ejecuta el script de configuración:
+
+```bash
+setup_env.bat
+```
+
+Esto creará el entorno virtual e instalará todas las dependencias necesarias.
+
+### Opción B: Configuración Manual
 
 1.  **Clonar el repositorio**:
 
@@ -34,7 +55,7 @@ El script escanea las dos primeras páginas de un archivo PDF de guías de remis
     cd script-guias-remision
     ```
 
-2.  **Crear y activar un entorno virtual (Opcional pero recomendado)**:
+2.  **Crear y activar un entorno virtual**:
 
     ```bash
     python -m venv venv
@@ -48,37 +69,73 @@ El script escanea las dos primeras páginas de un archivo PDF de guías de remis
 
 ## 🚀 Uso
 
-Ejecuta el script principal proporcionando la ruta del PDF a procesar y la ruta del archivo Excel donde guardar los datos.
+### Opción 1: Interfaz Gráfica (Recomendado)
+
+Ideal para procesar múltiples documentos de una vez.
+
+**Método Rápido:**
+Haz doble clic en el archivo `run.bat`.
+
+**Método Manual:**
+
+1.  Activa el entorno virtual si no lo está.
+2.  Ejecuta la aplicación:
+    ```bash
+    python gui_main.py
+    ```
+
+**Pasos en la App:**
+
+1.  **Configura el Excel**: Selecciona tu archivo `.xlsx` de destino (solo es necesario la primera vez).
+2.  **Carga PDFs**: Haz clic en el área central o en "Seleccionar Archivos" para elegir uno o varios PDFs.
+3.  **Procesa**: Presiona el botón "Procesar Archivos" y espera la confirmación.
+
+### Opción 2: Línea de Comandos (CLI)
+
+Útil para automatizaciones o scripts batch de un solo archivo.
+
+Puedes usar `run.bat` pasando argumentos directos:
+
+```bash
+run.bat "ruta/al/archivo.pdf" "ruta/al/archivo.xlsx"
+```
+
+O hacerlo manualmente con Python:
 
 ```bash
 python main.py "ruta/al/archivo.pdf" "ruta/al/archivo.xlsx"
 ```
 
-### Ejemplo
+**Ejemplo:**
 
 ```bash
-python main.py "C:\Documentos\Guia_001.pdf" "C:\Reportes\Reporte_Guias.xlsx"
+python main.py "C:\Docs\Guia_001.pdf" "C:\Reportes\Guias2024.xlsx"
 ```
-
-Si el archivo Excel no existe, el script mostrará un error. Asegúrate de tener una plantilla de Excel creada previamente.
 
 ## 📂 Estructura del Proyecto
 
 ```
 .
-├── main.py                     # Punto de entrada del script
+├── gui_main.py                 # Punto de entrada de la Aplicación Gráfica
+├── main.py                     # Punto de entrada para Línea de Comandos
+├── setup_env.bat               # Script de instalación automática
+├── run.bat                     # Lanzador inteligente (GUI o CLI)
+├── config.json                 # Archivo de configuración (generado automáticamente)
 ├── requirements.txt            # Dependencias del proyecto
-├── run.bat                     # Script batch para ejecución rápida
 ├── src/
-│   ├── models.py               # Definición de la clase de datos (RemisionGuide)
-│   ├── parsers/
-│   │   └── pdf_parser.py       # Lógica de extracción de texto y regex sobre PDFs
-│   └── storage/
-│       └── excel_db.py         # Lógica para manipulación y guardado en Excel
-└── venv/                       # Entorno virtual (no incluido en control de versiones)
+│   ├── config/                 # Módulo de configuración y persistencia
+│   │   └── settings.py
+│   ├── gui/                    # Componentes de la Interfaz Gráfica
+│   │   ├── main_window.py
+│   │   └── styles.py
+│   ├── models.py               # Definición de datos (RemisionGuide)
+│   ├── parsers/                # Lógica de extracción (PDFParser)
+│   └── storage/                # Lógica de Excel
+└── venv/                       # Entorno virtual
 ```
 
 ## ⚠️ Notas Importantes
 
-- El script asume que el archivo Excel ya existe y tiene una estructura compatible con las columnas esperadas (A: Remitente, B: Transportista, C: Fecha, D: Peso, E: Vacío, F: Placa, G: Archivo).
-- Se escanean solo las primeras 2 páginas del PDF.
+- El script requiere que el archivo Excel de destino exista previamente.
+- Estructura de columnas esperada en Excel: remitente, transportista, fecha, peso, (vacío), placa, link al archivo.
+- Se escanean únicamente las primeras 2 páginas de cada PDF.

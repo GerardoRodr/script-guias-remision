@@ -1,12 +1,14 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 import threading
+import queue
 
 from src.config.settings import settings
 from src.gui import styles
+from src.gui.dialogs import DuplicateDialog
 from src.parsers.pdf_parser import PDFParser
-from src.storage.excel_db import guardar_guias
+from src.storage.excel_db import guardar_guias, get_existing_guides
 
 class MainWindow(tk.Tk):
     def __init__(self):
@@ -17,9 +19,39 @@ class MainWindow(tk.Tk):
         self.resizable(False, False)
 
         self.files_to_process = []
+        self.queue = queue.Queue()
         
         self._setup_ui()
         self._load_initial_settings()
+        self._check_queue()
+
+    def _check_queue(self):
+        """Revisa la cola de mensajes del hilo secundario."""
+        try:
+            msg = self.queue.get_nowait()
+            if isinstance(msg, dict) and msg.get("type") == "duplicates":
+                self._show_duplicate_dialog(msg["data"], msg["new_guides"], msg["excel_path"])
+            elif isinstance(msg, dict) and msg.get("type") == "finished":
+                 self._process_finished_ui(msg["message"], msg["is_error"])
+        except queue.Empty:
+            pass
+        finally:
+            self.after(100, self._check_queue)
+    
+    def _show_duplicate_dialog(self, duplicates, new_guides, excel_path):
+        """Muestra el diálogo de duplicados en el hilo principal."""
+        dialog = DuplicateDialog(self, duplicates)
+        self.wait_window(dialog)
+        
+        if dialog.result:
+            # Si el usuario aceptó, continuamos guardando SOLO las nuevas
+            if new_guides:
+                threading.Thread(target=self.save_guides_thread, args=(excel_path, new_guides), daemon=True).start()
+            else:
+                 self.process_finished("No hay guías nuevas para guardar.", is_error=False)
+        else:
+            # Cancelado
+            self.process_finished("Operación cancelada por el usuario.", is_error=False)
 
     def _setup_ui(self):
         # Title
@@ -208,6 +240,7 @@ class MainWindow(tk.Tk):
         errors = []
 
         try:
+            # 1. Extraer Guías
             for pdf_path in self.files_to_process:
                 self.update_status(f"Leyendo: {Path(pdf_path).name}")
                 try:
@@ -219,22 +252,48 @@ class MainWindow(tk.Tk):
             if not all_guides:
                 self.process_finished(f"No se encontraron guías. {len(errors)} errores.", is_error=True)
                 return
-
-            self.update_status("Guardando en Excel...")
-            guardar_guias(excel_path, all_guides)
-
-            msg = f"Completado! {len(all_guides)} guías guardadas."
-            if errors:
-                msg += f" {len(errors)} de {len(self.files_to_process)} fallaron."
             
-            self.process_finished(msg)
+            # 2. Verificar Duplicados
+            existing_guides = get_existing_guides(excel_path)
+            
+            duplicates = []
+            new_guides = []
+            
+            for guide in all_guides:
+                key = (guide.cod_remitente, guide.cod_transportista)
+                if key in existing_guides:
+                    duplicates.append(guide)
+                else:
+                    new_guides.append(guide)
+            
+            if duplicates:
+                # Enviar a la UI para mostrar diálogo
+                self.queue.put({
+                    "type": "duplicates", 
+                    "data": duplicates, 
+                    "new_guides": new_guides,
+                    "excel_path": excel_path
+                })
+            else:
+                # Si no hay duplicados, guardamos directo
+                self.save_guides_thread(excel_path, new_guides)
 
         except Exception as e:
             self.process_finished(f"Error crítico: {str(e)}", is_error=True)
 
+    def save_guides_thread(self, excel_path, guides):
+        try:
+            if guides:
+                self.update_status("Guardando en Excel...")
+                guardar_guias(excel_path, guides)
+                self.process_finished(f"Completado! {len(guides)} guías guardadas.")
+            else:
+                self.process_finished("No hay guías nuevas para guardar.")
+        except Exception as e:
+            self.process_finished(f"Error guardando: {e}", is_error=True)
+
     def process_finished(self, message, is_error=False):
-        # Schedule GUI update on main thread
-        self.after(0, lambda: self._process_finished_ui(message, is_error))
+        self.queue.put({"type": "finished", "message": message, "is_error": is_error})
 
     def _process_finished_ui(self, message, is_error):
         self.update_status(message, is_error)
@@ -245,6 +304,7 @@ class MainWindow(tk.Tk):
             self.update_dnd_label()
         else:
             messagebox.showerror("Error", message)
+
 
 if __name__ == "__main__":
     app = MainWindow()

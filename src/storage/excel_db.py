@@ -62,5 +62,30 @@ def guardar_guias(ruta_excel: str, lista_guias: List[RemisionGuide]):
         
     except FileNotFoundError:
         print(f"Error: No existe el archivo {ruta_excel}")
-    except PermissionError:
         print(f"Error: Cierra el Excel antes de ejecutar el script.")
+
+def get_existing_guides(ruta_excel: str) -> set:
+    """
+    Lee el Excel y devuelve un conjunto de tuplas (cod_remitente, cod_transportista)
+    de las guías que ya existen.
+    """
+    existing = set()
+    try:
+        libro = load_workbook(ruta_excel, read_only=True)
+        hoja = libro.active
+        
+        # Asumiendo que la fila 1 son cabeceras, iteramos desde la 2
+        for row in hoja.iter_rows(min_row=2, values_only=True):
+            if row and len(row) >= 2:
+                remitente = row[0]
+                transportista = row[1]
+                if remitente and transportista:
+                    existing.add((str(remitente).strip(), str(transportista).strip()))
+        
+        libro.close()
+    except FileNotFoundError:
+        pass # Si no existe el archivo, no hay duplicados
+    except Exception as e:
+        print(f"Error leyendo duplicados: {e}")
+    
+    return existing

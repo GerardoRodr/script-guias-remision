@@ -6,7 +6,7 @@ import queue
 
 from src.config.settings import settings
 from src.gui import styles
-from src.gui.dialogs import DuplicateDialog
+from src.gui.dialogs import ValidationDialog
 from src.parsers.pdf_parser import PDFParser
 from src.storage.excel_db import guardar_guias, get_existing_guides
 
@@ -29,8 +29,8 @@ class MainWindow(tk.Tk):
         """Revisa la cola de mensajes del hilo secundario."""
         try:
             msg = self.queue.get_nowait()
-            if isinstance(msg, dict) and msg.get("type") == "duplicates":
-                self._show_duplicate_dialog(msg["data"], msg["new_guides"], msg["excel_path"])
+            if isinstance(msg, dict) and msg.get("type") == "validation":
+                self._show_validation_dialog(msg["duplicates"], msg["invalid"], msg["valid"], msg["excel_path"])
             elif isinstance(msg, dict) and msg.get("type") == "finished":
                  self._process_finished_ui(msg["message"], msg["is_error"])
         except queue.Empty:
@@ -38,17 +38,17 @@ class MainWindow(tk.Tk):
         finally:
             self.after(100, self._check_queue)
     
-    def _show_duplicate_dialog(self, duplicates, new_guides, excel_path):
-        """Muestra el diálogo de duplicados en el hilo principal."""
-        dialog = DuplicateDialog(self, duplicates)
+    def _show_validation_dialog(self, duplicates, invalid, valid, excel_path):
+        """Muestra el diálogo de validación en el hilo principal."""
+        dialog = ValidationDialog(self, duplicates, invalid)
         self.wait_window(dialog)
         
         if dialog.result:
-            # Si el usuario aceptó, continuamos guardando SOLO las nuevas
-            if new_guides:
-                threading.Thread(target=self.save_guides_thread, args=(excel_path, new_guides), daemon=True).start()
+            # Si el usuario aceptó, continuamos guardando SOLO los válidos
+            if valid:
+                threading.Thread(target=self.save_guides_thread, args=(excel_path, valid), daemon=True).start()
             else:
-                 self.process_finished("No hay guías nuevas para guardar.", is_error=False)
+                 self.process_finished("No hay guías válidas para guardar.", is_error=False)
         else:
             # Cancelado
             self.process_finished("Operación cancelada por el usuario.", is_error=False)
@@ -253,30 +253,44 @@ class MainWindow(tk.Tk):
                 self.process_finished(f"No se encontraron guías. {len(errors)} errores.", is_error=True)
                 return
             
-            # 2. Verificar Duplicados
+            # 2. Verificar Validez y Duplicados
             existing_guides = get_existing_guides(excel_path)
             
             duplicates = []
-            new_guides = []
+            invalid = []
+            valid = []
             
             for guide in all_guides:
+                # Criterio de invalidez: no se encontró remitente o transportista
+                if guide.cod_remitente == "No encontrado" and guide.cod_transportista == "No encontrado":
+                    invalid.append(guide)
+                    continue
+
+                if guide.cod_remitente == "No encontrado" or guide.cod_transportista == "No encontrado":
+                     # Podríamos ser más estrictos, pero según el parser actual, si falta uno de los dos códigos
+                     # podría considerarse inválida o incompleta. El usuario pidió "ni de remitente ni de transportista",
+                     # pero para seguridad, si falta CUALQUIERA de los dos códigos principales, lo marco inválido.
+                     invalid.append(guide)
+                     continue
+
                 key = (guide.cod_remitente, guide.cod_transportista)
                 if key in existing_guides:
                     duplicates.append(guide)
                 else:
-                    new_guides.append(guide)
+                    valid.append(guide)
             
-            if duplicates:
+            if duplicates or invalid:
                 # Enviar a la UI para mostrar diálogo
                 self.queue.put({
-                    "type": "duplicates", 
-                    "data": duplicates, 
-                    "new_guides": new_guides,
+                    "type": "validation", 
+                    "duplicates": duplicates,
+                    "invalid": invalid,
+                    "valid": valid,
                     "excel_path": excel_path
                 })
             else:
-                # Si no hay duplicados, guardamos directo
-                self.save_guides_thread(excel_path, new_guides)
+                # Si todo está perfecto, guardamos directo
+                self.save_guides_thread(excel_path, valid)
 
         except Exception as e:
             self.process_finished(f"Error crítico: {str(e)}", is_error=True)
@@ -304,8 +318,3 @@ class MainWindow(tk.Tk):
             self.update_dnd_label()
         else:
             messagebox.showerror("Error", message)
-
-
-if __name__ == "__main__":
-    app = MainWindow()
-    app.mainloop()

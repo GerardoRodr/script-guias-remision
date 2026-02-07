@@ -1,13 +1,20 @@
 # Colors
-BACKGROUND = "#f0f2f5"
+PRIMARY = "#007acc"
+PRIMARY_HOVER = "#005f9e"
+SECONDARY = "#e0e0e0"
+BACKGROUND = "#f0f0f0"
 WHITE = "#ffffff"
-PRIMARY = "#007bff"
-PRIMARY_HOVER = "#0056b3"
 TEXT_DARK = "#333333"
 TEXT_LIGHT = "#666666"
-BORDER = "#dcdcdc"
-SUCCESS = "#28a745"
-ERROR = "#dc3545"
+ERROR = "#d32f2f"
+SUCCESS = "#2e7d32"
+WARNING = "#ed6c02" # Orange for duplicates
+INFO = "#0288d1"    # Blue for information
+
+# Tags for Treeview
+TAG_VALID = "valid"
+TAG_INVALID = "invalid"
+TAG_DUPLICATE = "duplicate"
 
 # Fonts
 FONT_FAMILY = "Segoe UI" # Standard Windows font

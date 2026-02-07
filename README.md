@@ -19,8 +19,11 @@ Los datos extraídos se insertan en una nueva fila de un archivo Excel existente
 - **Interfaz Gráfica (GUI) Nueva**:
   - Diseño intuitivo y minimalista.
   - Selección de múltiples archivos PDF simultáneamente.
-  - Área de carga interactiva.
-  - Visualización de estado y reporte de errores.
+  - **Tabla de Previsualización (Staging):** Revisa el estado de tus archivos antes de guardar.
+  - **Validación en Tiempo Real:**
+    - Detecta automáticamente **Duplicados** (si ya existen en el Excel).
+    - Identifica archivos **Inválidos** (si faltan datos críticos).
+  - Visualización de estado mediante colores (Verde, Naranja, Rojo).
 - **Configuración Persistente**: El sistema recuerda automáticamente la ubicación de tu archivo Excel de destino.
 - **Extracción de Datos Robusta**: Identificación precisa de campos mediante expresiones regulares.
 - **Integración con Excel**:
@@ -84,11 +87,17 @@ Haz doble clic en el archivo `run.bat`.
     python gui_main.py
     ```
 
-**Pasos en la App:**
-
-1.  **Configura el Excel**: Selecciona tu archivo `.xlsx` de destino (solo es necesario la primera vez).
-2.  **Carga PDFs**: Haz clic en el área central o en "Seleccionar Archivos" para elegir uno o varios PDFs.
-3.  **Procesa**: Presiona el botón "Procesar Archivos" y espera la confirmación.
+87: **Pasos en la App:**
+88:
+89: 1. **Configura el Excel**: Selecciona tu archivo `.xlsx` de destino (solo es necesario la primera vez).
+90: 2. **Carga PDFs**: Haz clic en "+ Añadir Archivos" para elegir uno o varios PDFs.
+91: 3. **Revisa la Tabla**:
+92: - Los archivos se cargarán automáticamente en la tabla.
+93: - Verifica el estado:
+94: - 🟢 **Verde**: Válido. Listo para guardar.
+95: - 🟠 **Naranja**: Duplicado. Ya existe en el Excel (se ignorará).
+96: - 🔴 **Rojo**: Inválido. Faltan datos (se ignorará).
+97: 4. **Guarda**: Presiona "Guardar Válidos". Solo se procesarán las guías correctas.
 
 ### Opción 2: Línea de Comandos (CLI)
 
